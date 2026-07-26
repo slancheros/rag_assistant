@@ -33,28 +33,44 @@ class SupportAssistant:
     async def answer(
         self,
         question: str,
+        top_k: int | None = None,
+        relevance_threshold: float | None = None,
     ) -> SupportAnswer:
+        selected_top_k = (
+            top_k if top_k is not None else self.top_k
+        )
+        selected_threshold = (
+            relevance_threshold
+            if relevance_threshold is not None
+            else self.relevance_threshold
+        )
+
         retrieved_documents = await self.retriever.retrieve(
             query=question,
-            limit=self.top_k,
+            limit=selected_top_k,
         )
 
         relevant_documents = [
             item
             for item in retrieved_documents
-            if item.score >= self.relevance_threshold
+            if item.score >= selected_threshold
         ]
 
         logger.info(
-            "retrieval_completed retrieved_ids=%s scores=%s",
-            [
-                item.document.id
-                for item in retrieved_documents
-            ],
-            [
-                round(item.score, 4)
-                for item in retrieved_documents
-            ],
+            "retrieval_completed",
+            extra={
+                "top_k": selected_top_k,
+                "relevance_threshold": selected_threshold,
+                "retrieved_ids": [
+                    item.document.id
+                    for item in retrieved_documents
+                ],
+                "scores": [
+                    round(item.score, 4)
+                    for item in retrieved_documents
+                ],
+                "relevant_count": len(relevant_documents),
+            },
         )
 
         if not relevant_documents:

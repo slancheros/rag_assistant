@@ -17,7 +17,7 @@ class OpenAIEmbedder(Embedder):
         api_key: str,
         model: str,
         timeout_seconds: float,
-        base_url: str,
+        base_url: str = "https://api.openai.com/v1",
     ) -> None:
         self.client = AsyncOpenAI(
             api_key=api_key,
@@ -50,6 +50,7 @@ class OpenAIEmbedder(Embedder):
             RateLimitError,
             APIConnectionError,
             APIStatusError,
+            RuntimeError,
         ) as exc:
             raise ProviderUnavailableError() from exc
 

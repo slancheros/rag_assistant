@@ -5,9 +5,10 @@ from app.domain.models import KnowledgeDocument
 
 
 SNIPPET_PATTERN = re.compile(
-    r"\*\*Snippet\s+(?P<number>\d+)\s+[—-]\s+(?P<title>.*?)\*\*\s*"
-    r"(?P<content>.*?)(?=\n\*\*Snippet\s+\d+\s+[—-]|\Z)",
-    flags=re.DOTALL,
+    r"^\*\*Snippet\s+(?P<number>\d+)\s+[—-]\s+"
+    r"(?P<title>.*?)\*\*[^\S\r\n]*(?:\r?\n|\Z)"
+    r"(?P<content>.*?)(?=^\*\*Snippet\s+\d+\s+[—-]|\Z)",
+    flags=re.DOTALL | re.MULTILINE,
 )
 
 

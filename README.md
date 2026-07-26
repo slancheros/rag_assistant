@@ -324,19 +324,66 @@ http://localhost:8000/docs
 
 # Docker
 
-Build
+The complete stack includes the application, Ollama, and a
+one-time bootstrap service that downloads both required models.
 
 ```bash
-docker build -t nimbus-support-assistant .
+docker compose up --build
 ```
 
-Run
+The first startup takes longer while the models are downloaded.
+Subsequent starts reuse the `ollama-data` volume. Open the UI at
+<http://localhost:8000> once the `app` service is healthy.
+
+Build only the lightweight UI image without pulling or starting
+Ollama:
 
 ```bash
-docker run \
--p 8000:8000 \
---env-file .env \
-nimbus-support-assistant
+docker compose build ui
+```
+
+Run only the UI for visual development. API-backed actions show
+the disconnected state until the rest of the stack is running:
+
+```bash
+docker compose up --no-deps ui
+```
+
+Rebuild and replace only a running UI:
+
+```bash
+docker compose up --build --no-deps -d ui
+```
+
+Follow structured application logs:
+
+```bash
+docker compose logs -f app
+```
+
+Check service health:
+
+```bash
+docker compose ps
+```
+
+To customize the port, models, or RAG parameters, copy the
+example environment file before starting:
+
+```bash
+cp .env.example .env
+```
+
+Stop the stack while preserving downloaded models:
+
+```bash
+docker compose down
+```
+
+Remove the stack and its model volume:
+
+```bash
+docker compose down --volumes
 ```
 
 ---

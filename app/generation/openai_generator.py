@@ -22,7 +22,7 @@ class OpenAIAnswerGenerator(AnswerGenerator):
         api_key: str,
         model: str,
         timeout_seconds: float,
-        base_url: str,
+        base_url: str = "https://api.openai.com/v1",
     ) -> None:
         self.client = AsyncOpenAI(
             api_key=api_key,
@@ -74,6 +74,7 @@ class OpenAIAnswerGenerator(AnswerGenerator):
             RateLimitError,
             APIConnectionError,
             APIStatusError,
+            RuntimeError,
         ) as exc:
             raise ProviderUnavailableError() from exc
 

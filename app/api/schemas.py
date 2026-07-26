@@ -6,6 +6,16 @@ class AnswerRequest(BaseModel):
         min_length=3,
         max_length=2000,
     )
+    top_k: int | None = Field(
+        default=None,
+        ge=1,
+        le=10,
+    )
+    relevance_threshold: float | None = Field(
+        default=None,
+        ge=-1.0,
+        le=1.0,
+    )
 
     @field_validator("question")
     @classmethod
@@ -30,11 +40,25 @@ class SourceResponse(BaseModel):
     score: float
 
 
+class RagParametersResponse(BaseModel):
+    top_k: int
+    relevance_threshold: float
+
+
 class AnswerResponse(BaseModel):
     answer: str
     grounded: bool
     sources: list[SourceResponse]
     request_id: str
+    parameters: RagParametersResponse
+
+
+class RagConfigResponse(BaseModel):
+    provider: str
+    llm_model: str
+    embedding_model: str
+    document_count: int
+    defaults: RagParametersResponse
 
 
 class HealthResponse(BaseModel):

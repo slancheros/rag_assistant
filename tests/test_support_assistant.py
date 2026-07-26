@@ -154,6 +154,39 @@ async def test_only_relevant_documents_are_sent_to_generator(
 
 
 @pytest.mark.asyncio
+async def test_request_parameters_override_rag_defaults(
+    password_document: KnowledgeDocument,
+) -> None:
+    retriever = FakeRetriever(
+        results=[
+            RetrievedDocument(
+                document=password_document,
+                score=0.6,
+            )
+        ]
+    )
+    generator = FakeGenerator(answer="Use Forgot password.")
+    assistant = SupportAssistant(
+        retriever=retriever,
+        generator=generator,
+        relevance_threshold=0.7,
+        top_k=2,
+    )
+
+    result = await assistant.answer(
+        "How do I reset my password?",
+        top_k=5,
+        relevance_threshold=0.5,
+    )
+
+    assert retriever.calls == [
+        ("How do I reset my password?", 5)
+    ]
+    assert result.grounded is True
+    assert len(generator.calls) == 1
+
+
+@pytest.mark.asyncio
 async def test_sources_are_deterministic_and_not_model_generated(
     password_document: KnowledgeDocument,
 ) -> None:

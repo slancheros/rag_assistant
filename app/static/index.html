@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A transparent RAG workbench for NimbusCloud support.">
+  <title>Nimbus — RAG Workbench</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Nimbus home">
+      <span class="brand-mark" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </span>
+      <span>Nimbus</span>
+      <span class="brand-suffix">RAG workbench</span>
+    </a>
+    <div class="status" id="api-status">
+      <span class="status-dot"></span>
+      <span>Checking API</span>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="chat-panel">
+      <div class="intro">
+        <p class="eyebrow">Grounded support, made inspectable</p>
+        <h1>Ask the knowledge base.</h1>
+        <p>Get a concise answer, then see exactly which documents earned their place in the context.</p>
+      </div>
+
+      <div class="suggestions" aria-label="Example questions">
+        <button type="button" data-question="How do I reset my password?">Reset a password</button>
+        <button type="button" data-question="What are the storage limits?">Check storage limits</button>
+        <button type="button" data-question="How can I contact support?">Contact support</button>
+      </div>
+
+      <div class="conversation" id="conversation" aria-live="polite">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-orbit"><span></span></div>
+          <p>Your answer and retrieval trace will appear here.</p>
+        </div>
+      </div>
+
+      <form class="composer" id="question-form">
+        <label class="sr-only" for="question">Ask a question</label>
+        <textarea id="question" name="question" rows="1" maxlength="2000" placeholder="Ask about NimbusCloud…" required></textarea>
+        <div class="composer-actions">
+          <span><kbd>⌘</kbd> <kbd>↵</kbd> to send</span>
+          <button class="send-button" type="submit">
+            <span>Ask Nimbus</span>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg>
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <aside class="inspector">
+      <div class="inspector-heading">
+        <div>
+          <p class="eyebrow">Retrieval controls</p>
+          <h2>RAG inspector</h2>
+        </div>
+        <button class="icon-button" id="reset-controls" type="button" title="Reset parameters" aria-label="Reset parameters">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.8 5.5A7 7 0 1 1 3 10M3 4v6h6"/></svg>
+        </button>
+      </div>
+
+      <section class="control-card">
+        <div class="control-label">
+          <label for="top-k">Context window</label>
+          <output id="top-k-value">2 chunks</output>
+        </div>
+        <input id="top-k" type="range" min="1" max="10" value="2" step="1">
+        <div class="range-labels"><span>Focused</span><span>Broad</span></div>
+        <p>Maximum number of matching chunks retrieved before filtering.</p>
+      </section>
+
+      <section class="control-card">
+        <div class="control-label">
+          <label for="threshold">Relevance floor</label>
+          <output id="threshold-value">0.35</output>
+        </div>
+        <input id="threshold" type="range" min="-1" max="1" value="0.35" step="0.01">
+        <div class="range-labels"><span>Permissive</span><span>Strict</span></div>
+        <p>Chunks scoring below this cosine-similarity threshold are excluded.</p>
+      </section>
+
+      <section class="system-card">
+        <div class="card-title">
+          <span>Pipeline</span>
+          <span class="live-pill">Live</span>
+        </div>
+        <dl>
+          <div><dt>Provider</dt><dd id="provider">—</dd></div>
+          <div><dt>Generator</dt><dd id="llm-model">—</dd></div>
+          <div><dt>Embeddings</dt><dd id="embedding-model">—</dd></div>
+          <div><dt>Indexed chunks</dt><dd id="document-count">—</dd></div>
+        </dl>
+      </section>
+
+      <section class="trace-card">
+        <div class="card-title">
+          <span>Last run</span>
+          <span id="run-grounding" class="muted">No query yet</span>
+        </div>
+        <dl>
+          <div><dt>Request ID</dt><dd id="request-id">—</dd></div>
+          <div><dt>Sources used</dt><dd id="sources-used">—</dd></div>
+          <div><dt>Top K applied</dt><dd id="applied-top-k">—</dd></div>
+          <div><dt>Threshold</dt><dd id="applied-threshold">—</dd></div>
+        </dl>
+      </section>
+    </aside>
+  </main>
+
+  <template id="answer-template">
+    <article class="answer-block">
+      <div class="question-row"><span class="role-label">You</span><p></p></div>
+      <div class="answer-row">
+        <div class="answer-heading">
+          <span class="answer-avatar">N</span>
+          <span class="role-label">Nimbus</span>
+          <span class="grounded-badge"></span>
+        </div>
+        <div class="answer-copy"></div>
+        <div class="source-list"></div>
+      </div>
+    </article>
+  </template>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>

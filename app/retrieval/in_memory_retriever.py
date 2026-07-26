@@ -11,6 +11,11 @@ def cosine_similarity(
     left: list[float],
     right: list[float],
 ) -> float:
+    if len(left) != len(right):
+        raise ValueError(
+            "Vectors must have the same dimensions."
+        )
+
     numerator = sum(
         left_value * right_value
         for left_value, right_value in zip(
@@ -41,6 +46,11 @@ class InMemoryRetriever:
         vectors: list[list[float]],
         embedder: Embedder,
     ) -> None:
+        if len(documents) != len(vectors):
+            raise ValueError(
+                "Each document must have one embedding vector."
+            )
+
         self.documents = documents
         self.vectors = vectors
         self.embedder = embedder
@@ -51,6 +61,11 @@ class InMemoryRetriever:
         documents: list[KnowledgeDocument],
         embedder: Embedder,
     ) -> "InMemoryRetriever":
+        if not documents:
+            raise ValueError(
+                "At least one knowledge document is required."
+            )
+
         texts_to_embed = [
             f"{document.title}\n\n{document.content}"
             for document in documents
@@ -69,7 +84,19 @@ class InMemoryRetriever:
         query: str,
         limit: int,
     ) -> list[RetrievedDocument]:
-        query_vectors = await self.embedder.embed([query])
+        normalized_query = query.strip()
+
+        if not normalized_query:
+            raise ValueError("Query cannot be empty.")
+
+        if limit <= 0:
+            raise ValueError(
+                "Retrieval limit must be greater than zero."
+            )
+
+        query_vectors = await self.embedder.embed(
+            [normalized_query]
+        )
         query_vector = query_vectors[0]
 
         ranked_documents = [
