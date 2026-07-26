@@ -10,7 +10,11 @@ from app.services.support_assistant import (
     SupportAssistant,
 )
 
-from tests.conftest import FakeGenerator, FakeRetriever
+from tests.conftest import (
+    FakeGenerator,
+    FakeGroundingEvaluator,
+    FakeRetriever,
+)
 
 
 @pytest.mark.asyncio
@@ -33,6 +37,7 @@ async def test_returns_grounded_answer_for_relevant_context(
     assistant = SupportAssistant(
         retriever=retriever,
         generator=generator,
+        grounding_evaluator=FakeGroundingEvaluator(),
         relevance_threshold=0.5,
         top_k=2,
     )
@@ -69,6 +74,7 @@ async def test_returns_fallback_when_no_results_exist() -> None:
     assistant = SupportAssistant(
         retriever=retriever,
         generator=generator,
+        grounding_evaluator=FakeGroundingEvaluator(),
         relevance_threshold=0.5,
         top_k=2,
     )
@@ -101,6 +107,7 @@ async def test_returns_fallback_when_score_is_below_threshold(
     assistant = SupportAssistant(
         retriever=retriever,
         generator=generator,
+        grounding_evaluator=FakeGroundingEvaluator(),
         relevance_threshold=0.5,
         top_k=2,
     )
@@ -139,6 +146,7 @@ async def test_only_relevant_documents_are_sent_to_generator(
     assistant = SupportAssistant(
         retriever=retriever,
         generator=generator,
+        grounding_evaluator=FakeGroundingEvaluator(),
         relevance_threshold=0.5,
         top_k=2,
     )
@@ -169,6 +177,7 @@ async def test_request_parameters_override_rag_defaults(
     assistant = SupportAssistant(
         retriever=retriever,
         generator=generator,
+        grounding_evaluator=FakeGroundingEvaluator(),
         relevance_threshold=0.7,
         top_k=2,
     )
@@ -209,6 +218,7 @@ async def test_sources_are_deterministic_and_not_model_generated(
     assistant = SupportAssistant(
         retriever=retriever,
         generator=generator,
+        grounding_evaluator=FakeGroundingEvaluator(),
         relevance_threshold=0.5,
         top_k=2,
     )
@@ -221,6 +231,43 @@ async def test_sources_are_deterministic_and_not_model_generated(
     assert result.sources[0].title == password_document.title
     assert result.sources[0].source == password_document.source
     assert result.sources[0].score == 0.8765
+
+
+@pytest.mark.asyncio
+async def test_rejects_answer_not_supported_by_context(
+    password_document: KnowledgeDocument,
+) -> None:
+    retriever = FakeRetriever(
+        results=[
+            RetrievedDocument(
+                document=password_document,
+                score=0.9,
+            )
+        ]
+    )
+    generator = FakeGenerator(
+        answer="The reset link is valid for one hour."
+    )
+    evaluator = FakeGroundingEvaluator(grounded=False)
+    assistant = SupportAssistant(
+        retriever=retriever,
+        generator=generator,
+        grounding_evaluator=evaluator,
+        relevance_threshold=0.5,
+        top_k=2,
+    )
+
+    result = await assistant.answer(
+        "How long is the reset link valid?"
+    )
+
+    assert result.answer == FALLBACK_ANSWER
+    assert result.grounded is False
+    assert result.sources == []
+    assert evaluator.calls[0][0] == (
+        "The reset link is valid for one hour."
+    )
+    assert evaluator.calls[0][1] == [password_document]
 
 
 @pytest.mark.asyncio
@@ -243,6 +290,7 @@ async def test_generator_error_is_propagated(
     assistant = SupportAssistant(
         retriever=retriever,
         generator=generator,
+        grounding_evaluator=FakeGroundingEvaluator(),
         relevance_threshold=0.5,
         top_k=2,
     )
@@ -264,6 +312,7 @@ async def test_retriever_error_is_propagated() -> None:
     assistant = SupportAssistant(
         retriever=retriever,
         generator=generator,
+        grounding_evaluator=FakeGroundingEvaluator(),
         relevance_threshold=0.5,
         top_k=2,
     )

@@ -272,6 +272,40 @@ Retrieved documents are treated as data rather than executable instructions.
 
 The system prompt explicitly instructs the LLM to ignore instructions contained in retrieved documents.
 
+A deterministic guard also inspects user questions before
+retrieval and relevant document content before generation. It
+blocks:
+
+- attempts to override system or developer instructions
+- requests to reveal hidden prompts
+- requests to expose credentials or other users' data
+- instructions embedded inside retrieved knowledge documents
+
+Blocked requests return the safe fallback without calling the
+answer generator. Every answer response includes a security
+assessment:
+
+```json
+{
+  "security": {
+    "prompt_injection_detected": false,
+    "blocked": false,
+    "reason": null
+  }
+}
+```
+
+When a request is blocked, `prompt_injection_detected` and
+`blocked` are `true`. The `reason` is one of
+`direct_prompt_injection`, `indirect_prompt_injection`,
+`prompt_extraction`, or `unauthorized_data_access`.
+
+These rules provide defense in depth but cannot guarantee
+detection of every adversarial prompt. The system prompt,
+retrieval boundary, post-generation grounding evaluator, API
+authentication, and restricted logging remain independent
+security controls.
+
 ## Secrets
 
 Secrets are loaded from environment variables.

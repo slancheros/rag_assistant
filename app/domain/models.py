@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -24,7 +24,17 @@ class Source:
 
 
 @dataclass(frozen=True)
+class SecurityMetadata:
+    prompt_injection_detected: bool = False
+    blocked: bool = False
+    reason: str | None = None
+
+
+@dataclass(frozen=True)
 class SupportAnswer:
     answer: str
     grounded: bool
     sources: list[Source]
+    security: SecurityMetadata = field(
+        default_factory=SecurityMetadata
+    )

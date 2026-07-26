@@ -45,12 +45,19 @@ class RagParametersResponse(BaseModel):
     relevance_threshold: float
 
 
+class SecurityResponse(BaseModel):
+    prompt_injection_detected: bool
+    blocked: bool
+    reason: str | None
+
+
 class AnswerResponse(BaseModel):
     answer: str
     grounded: bool
     sources: list[SourceResponse]
     request_id: str
     parameters: RagParametersResponse
+    security: SecurityResponse
 
 
 class RagConfigResponse(BaseModel):

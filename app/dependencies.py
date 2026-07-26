@@ -4,6 +4,9 @@ from app.core.config import Settings
 from app.generation.openai_generator import (
     OpenAIAnswerGenerator,
 )
+from app.generation.openai_grounding_evaluator import (
+    OpenAIGroundingEvaluator,
+)
 from app.ingestion.markdown_loader import (
     MarkdownKnowledgeBaseLoader,
 )
@@ -74,9 +77,17 @@ async def build_container(
         timeout_seconds=settings.provider_timeout_seconds,
     )
 
+    grounding_evaluator = OpenAIGroundingEvaluator(
+        api_key=api_key,
+        base_url=base_url,
+        model=settings.llm_model,
+        timeout_seconds=settings.provider_timeout_seconds,
+    )
+
     assistant = SupportAssistant(
         retriever=retriever,
         generator=generator,
+        grounding_evaluator=grounding_evaluator,
         relevance_threshold=settings.relevance_threshold,
         top_k=settings.top_k,
     )

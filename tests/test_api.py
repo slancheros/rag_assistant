@@ -86,6 +86,11 @@ def test_answer_serializes_domain_sources(
         "top_k": 2,
         "relevance_threshold": 0.35,
     }
+    assert body["security"] == {
+        "prompt_injection_detected": False,
+        "blocked": False,
+        "reason": None,
+    }
 
 
 def test_answer_rejects_missing_api_key(

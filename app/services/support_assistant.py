@@ -1,9 +1,18 @@
 import logging
 
-from app.domain.models import Source, SupportAnswer
+from app.domain.models import (
+    SecurityMetadata,
+    Source,
+    SupportAnswer,
+)
 from app.domain.protocols import (
     AnswerGenerator,
+    GroundingEvaluator,
     Retriever,
+)
+from app.security.prompt_injection import (
+    assess_context,
+    assess_question,
 )
 
 
@@ -22,11 +31,13 @@ class SupportAssistant:
         self,
         retriever: Retriever,
         generator: AnswerGenerator,
+        grounding_evaluator: GroundingEvaluator,
         relevance_threshold: float,
         top_k: int,
     ) -> None:
         self.retriever = retriever
         self.generator = generator
+        self.grounding_evaluator = grounding_evaluator
         self.relevance_threshold = relevance_threshold
         self.top_k = top_k
 
@@ -36,6 +47,19 @@ class SupportAssistant:
         top_k: int | None = None,
         relevance_threshold: float | None = None,
     ) -> SupportAnswer:
+        question_assessment = assess_question(question)
+        if question_assessment.detected:
+            logger.warning(
+                "prompt_injection_blocked",
+                extra={
+                    "reason": question_assessment.reason,
+                    "source": "question",
+                },
+            )
+            return self._blocked_answer(
+                question_assessment.reason
+            )
+
         selected_top_k = (
             top_k if top_k is not None else self.top_k
         )
@@ -80,13 +104,58 @@ class SupportAssistant:
                 sources=[],
             )
 
+        generated_context = [
+            item.document
+            for item in relevant_documents
+        ]
+        context_assessment = assess_context(
+            generated_context
+        )
+        if context_assessment.detected:
+            logger.warning(
+                "prompt_injection_blocked",
+                extra={
+                    "reason": context_assessment.reason,
+                    "source": "retrieved_context",
+                    "context_ids": [
+                        document.id
+                        for document in generated_context
+                    ],
+                },
+            )
+            return self._blocked_answer(
+                context_assessment.reason
+            )
+
         generated_answer = await self.generator.generate(
             question=question,
-            context=[
-                item.document
-                for item in relevant_documents
-            ],
+            context=generated_context,
         )
+
+        answer_is_grounded = (
+            await self.grounding_evaluator.is_grounded(
+                answer=generated_answer,
+                context=generated_context,
+            )
+        )
+
+        logger.info(
+            "grounding_check_completed",
+            extra={
+                "grounded": answer_is_grounded,
+                "context_ids": [
+                    document.id
+                    for document in generated_context
+                ],
+            },
+        )
+
+        if not answer_is_grounded:
+            return SupportAnswer(
+                answer=FALLBACK_ANSWER,
+                grounded=False,
+                sources=[],
+            )
 
         sources = [
             Source(
@@ -102,4 +171,19 @@ class SupportAssistant:
             answer=generated_answer,
             grounded=True,
             sources=sources,
+        )
+
+    @staticmethod
+    def _blocked_answer(
+        reason: str | None,
+    ) -> SupportAnswer:
+        return SupportAnswer(
+            answer=FALLBACK_ANSWER,
+            grounded=False,
+            sources=[],
+            security=SecurityMetadata(
+                prompt_injection_detected=True,
+                blocked=True,
+                reason=reason,
+            ),
         )

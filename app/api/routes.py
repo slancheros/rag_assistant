@@ -6,6 +6,7 @@ from app.api.schemas import (
     HealthResponse,
     RagConfigResponse,
     RagParametersResponse,
+    SecurityResponse,
     SourceResponse,
 )
 from app.api.security import require_api_key
@@ -87,5 +88,12 @@ async def answer(
                 if payload.relevance_threshold is not None
                 else assistant.relevance_threshold
             ),
+        ),
+        security=SecurityResponse(
+            prompt_injection_detected=(
+                result.security.prompt_injection_detected
+            ),
+            blocked=result.security.blocked,
+            reason=result.security.reason,
         ),
     )

@@ -103,6 +103,8 @@ function renderAnswer(question, data) {
   setText("sources-used", data.sources.length);
   setText("applied-top-k", data.parameters.top_k);
   setText("applied-threshold", data.parameters.relevance_threshold.toFixed(2));
+  setText("security-status", data.security.blocked ? "Blocked" : "Passed");
+  setText("security-reason", data.security.reason || "—");
   setText("run-grounding", data.grounded ? "Grounded answer" : "Fallback");
 }
 

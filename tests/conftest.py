@@ -84,6 +84,31 @@ class FakeGenerator:
         return self.answer
 
 
+class FakeGroundingEvaluator:
+    def __init__(
+        self,
+        grounded: bool = True,
+        error: Exception | None = None,
+    ) -> None:
+        self.grounded = grounded
+        self.error = error
+        self.calls: list[
+            tuple[str, Sequence[KnowledgeDocument]]
+        ] = []
+
+    async def is_grounded(
+        self,
+        answer: str,
+        context: Sequence[KnowledgeDocument],
+    ) -> bool:
+        self.calls.append((answer, context))
+
+        if self.error:
+            raise self.error
+
+        return self.grounded
+
+
 @pytest.fixture
 def password_document() -> KnowledgeDocument:
     return KnowledgeDocument(

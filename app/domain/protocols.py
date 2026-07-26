@@ -59,3 +59,16 @@ class AnswerGenerator(Protocol):
         Generate an answer grounded in the supplied knowledge documents.
         """
         ...
+
+
+@runtime_checkable
+class GroundingEvaluator(Protocol):
+    """Contract for checking answer faithfulness against context."""
+
+    async def is_grounded(
+        self,
+        answer: str,
+        context: Sequence[KnowledgeDocument],
+    ) -> bool:
+        """Return whether every factual claim is supported by context."""
+        ...
