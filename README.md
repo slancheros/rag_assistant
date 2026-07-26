@@ -20,7 +20,14 @@ The application intentionally avoids heavyweight frameworks (LangChain, LlamaInd
 
 <p align="center">
   <img
-    src="docs/images/Nimbus-fs8.png"
+    src="docs/images/Nimbus_baseQ-fs8.png"
+    alt="NimbusCloud Support Assistant showing a grounded customer support response and its retrieved sources"
+    width="900"
+  />
+</p>
+<p align="center">
+  <img
+    src="docs/images/Nimbus_prompt_extraction-fs8.png"
     alt="NimbusCloud Support Assistant showing a grounded customer support response and its retrieved sources"
     width="900"
   />
