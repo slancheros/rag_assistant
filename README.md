@@ -50,6 +50,9 @@ The application intentionally avoids heavyweight frameworks (LangChain, LlamaInd
 
 # Architecture
 
+For a detailed C4 architecture presentation, see
+[NimbusCloud RAG C4 Architecture](docs/architecture/NimbusCloud_RAG_C4_Architecture.pdf).
+
 ```mermaid
 flowchart LR
 
