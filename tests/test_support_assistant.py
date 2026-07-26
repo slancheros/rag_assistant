@@ -9,6 +9,7 @@ from app.services.support_assistant import (
     FALLBACK_ANSWER,
     SupportAssistant,
 )
+from app.services.answer_cache import TTLAnswerCache
 
 from tests.conftest import (
     FakeGenerator,
@@ -193,6 +194,54 @@ async def test_request_parameters_override_rag_defaults(
     ]
     assert result.grounded is True
     assert len(generator.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_reuses_and_invalidates_cached_answer(
+    password_document: KnowledgeDocument,
+) -> None:
+    retriever = FakeRetriever(
+        results=[
+            RetrievedDocument(
+                document=password_document,
+                score=0.9,
+            )
+        ]
+    )
+    generator = FakeGenerator(answer="Use Forgot password.")
+    assistant = SupportAssistant(
+        retriever=retriever,
+        generator=generator,
+        grounding_evaluator=FakeGroundingEvaluator(),
+        relevance_threshold=0.5,
+        top_k=2,
+        cache=TTLAnswerCache(
+            ttl_seconds=300,
+            max_entries=10,
+        ),
+    )
+
+    first = await assistant.answer(
+        "How do I reset my password?"
+    )
+    second = await assistant.answer(
+        "  how do I RESET my password?  "
+    )
+
+    assert first.cache.hit is False
+    assert first.cache.status == "miss"
+    assert second.cache.hit is True
+    assert second.answer == first.answer
+    assert len(retriever.calls) == 1
+    assert len(generator.calls) == 1
+
+    assert await assistant.invalidate_cache() == 1
+
+    third = await assistant.answer(
+        "How do I reset my password?"
+    )
+    assert third.cache.hit is False
+    assert len(retriever.calls) == 2
 
 
 @pytest.mark.asyncio

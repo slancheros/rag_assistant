@@ -11,6 +11,7 @@ from app.main import create_app
 class FakeAssistant:
     top_k = 2
     relevance_threshold = 0.35
+    invalidated_entries = 3
 
     async def answer(
         self,
@@ -30,6 +31,9 @@ class FakeAssistant:
                 )
             ],
         )
+
+    async def invalidate_cache(self) -> int:
+        return self.invalidated_entries
 
 
 @dataclass
@@ -91,6 +95,12 @@ def test_answer_serializes_domain_sources(
         "blocked": False,
         "reason": None,
     }
+    assert body["cache"] == {
+        "hit": False,
+        "status": "miss",
+        "cached_at": None,
+        "expires_at": None,
+    }
 
 
 def test_answer_rejects_missing_api_key(
@@ -108,3 +118,19 @@ def test_answer_rejects_missing_api_key(
         "Invalid or missing API key."
     )
     assert response.headers["WWW-Authenticate"] == "ApiKey"
+
+
+def test_cache_invalidation_requires_authentication_and_reports_count(
+    client: TestClient,
+) -> None:
+    response = client.delete("/api/v1/cache")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "invalidated_entries": 3,
+        "status": "invalidated",
+    }
+
+    del client.headers["X-API-Key"]
+    unauthorized_response = client.delete("/api/v1/cache")
+    assert unauthorized_response.status_code == 401

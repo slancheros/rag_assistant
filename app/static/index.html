@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css?v=cache-ui-1">
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -39,7 +39,7 @@
       <div class="suggestions" aria-label="Example questions">
         <button type="button" data-question="How do I reset my password?">Reset a password</button>
         <button type="button" data-question="What are the storage limits?">Check storage limits</button>
-        <button type="button" data-question="How can I contact support?">Contact support</button>
+        <button type="button" data-question="How do I enable two-factor authentication?">Set up 2FA</button>
       </div>
 
       <div class="conversation" id="conversation" aria-live="polite">
@@ -115,19 +115,24 @@
           <div><dt>Generator</dt><dd id="llm-model">—</dd></div>
           <div><dt>Embeddings</dt><dd id="embedding-model">—</dd></div>
           <div><dt>Indexed chunks</dt><dd id="document-count">—</dd></div>
+          <div><dt>Cache TTL</dt><dd id="cache-ttl">—</dd></div>
+          <div><dt>Cache capacity</dt><dd id="cache-capacity">—</dd></div>
         </dl>
       </section>
 
       <section class="trace-card">
         <div class="card-title">
           <span>Last run</span>
-          <span id="run-grounding" class="muted">No query yet</span>
+          <button id="invalidate-cache" class="text-button" type="button">Invalidate cache</button>
         </div>
         <dl>
+          <div><dt>Grounding</dt><dd id="run-grounding">No query yet</dd></div>
           <div><dt>Request ID</dt><dd id="request-id">—</dd></div>
           <div><dt>Sources used</dt><dd id="sources-used">—</dd></div>
           <div><dt>Top K applied</dt><dd id="applied-top-k">—</dd></div>
           <div><dt>Threshold</dt><dd id="applied-threshold">—</dd></div>
+          <div><dt>Cache</dt><dd id="cache-status">—</dd></div>
+          <div><dt>Expires</dt><dd id="cache-expires">—</dd></div>
           <div><dt>Security</dt><dd id="security-status">—</dd></div>
           <div><dt>Block reason</dt><dd id="security-reason">—</dd></div>
         </dl>
@@ -143,6 +148,7 @@
           <span class="answer-avatar">N</span>
           <span class="role-label">Nimbus</span>
           <span class="grounded-badge"></span>
+          <span class="cache-badge"></span>
         </div>
         <div class="answer-copy"></div>
         <div class="source-list"></div>
@@ -150,6 +156,6 @@
     </article>
   </template>
 
-  <script src="/app.js" defer></script>
+  <script src="/app.js?v=cache-ui-1" defer></script>
 </body>
 </html>

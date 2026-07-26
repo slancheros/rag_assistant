@@ -3,6 +3,9 @@ from fastapi import APIRouter, Depends, Request
 from app.api.schemas import (
     AnswerRequest,
     AnswerResponse,
+    CacheConfigResponse,
+    CacheInvalidationResponse,
+    CacheResponse,
     HealthResponse,
     RagConfigResponse,
     RagParametersResponse,
@@ -40,6 +43,27 @@ async def config(request: Request) -> RagConfigResponse:
             top_k=assistant.top_k,
             relevance_threshold=assistant.relevance_threshold,
         ),
+        cache=CacheConfigResponse(
+            ttl_seconds=assistant.cache.ttl_seconds,
+            max_entries=assistant.cache.max_entries,
+        ),
+    )
+
+
+@router.delete(
+    "/cache",
+    response_model=CacheInvalidationResponse,
+    dependencies=[Depends(require_api_key)],
+)
+async def invalidate_cache(
+    request: Request,
+) -> CacheInvalidationResponse:
+    invalidated_entries = await (
+        request.app.state.container.assistant.invalidate_cache()
+    )
+    return CacheInvalidationResponse(
+        invalidated_entries=invalidated_entries,
+        status="invalidated",
     )
 
 
@@ -95,5 +119,11 @@ async def answer(
             ),
             blocked=result.security.blocked,
             reason=result.security.reason,
+        ),
+        cache=CacheResponse(
+            hit=result.cache.hit,
+            status=result.cache.status,
+            cached_at=result.cache.cached_at,
+            expires_at=result.cache.expires_at,
         ),
     )

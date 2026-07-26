@@ -174,6 +174,19 @@ h1 {
   transition: 160ms ease;
 }
 .suggestions button:hover { border-color: var(--green); color: var(--green); transform: translateY(-1px); }
+.suggestions button.cached {
+  border-color: rgba(23, 107, 87, 0.32);
+  color: var(--green-dark);
+  background: rgba(205, 235, 220, 0.55);
+}
+.suggestion-cache-state {
+  margin-left: 6px;
+  font-family: "DM Mono", monospace;
+  font-size: 8px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+.suggestion-cache-state::before { content: "•"; margin-right: 4px; }
 
 .conversation {
   min-height: 240px;
@@ -228,6 +241,16 @@ h1 {
   font-size: 9px;
   text-transform: uppercase;
 }
+.cache-badge {
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #6d5527;
+  background: #f4e5bd;
+  font-family: "DM Mono", monospace;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+.cache-badge.hit { color: var(--green-dark); background: var(--mint); }
 .grounded-badge.ungrounded { color: #8b4d18; background: #f7dfbd; }
 .answer-copy { margin: 16px 0 20px 35px; color: #293632; font-size: 15px; line-height: 1.75; white-space: pre-wrap; }
 
@@ -342,6 +365,18 @@ kbd { padding: 2px 4px; border: 1px solid var(--line); border-radius: 4px; backg
 .card-title { margin-bottom: 12px; }
 .live-pill { margin: 0; }
 .muted { color: var(--muted); font-family: "DM Mono", monospace; font-size: 9px; }
+.text-button {
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--green);
+  background: transparent;
+  cursor: pointer;
+  font-family: "DM Mono", monospace;
+  font-size: 8px;
+  text-transform: uppercase;
+}
+.text-button:hover { border-color: var(--green); background: rgba(23,107,87,0.06); }
 dl { margin: 0; }
 dl > div { padding: 9px 0; display: grid; grid-template-columns: 42% 58%; border-top: 1px solid var(--line); }
 dt { color: var(--muted); font-size: 10px; }

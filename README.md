@@ -268,22 +268,78 @@ The implementation follows several secure engineering practices.
 
 ## Prompt Injection
 
-Retrieved documents are treated as data rather than executable instructions.
+Prompt-injection defenses are applied at multiple stages rather
+than relying on the model prompt alone.
 
-The system prompt explicitly instructs the LLM to ignore instructions contained in retrieved documents.
+### Guardrail Processing Order
 
-A deterministic guard also inspects user questions before
-retrieval and relevant document content before generation. It
-blocks:
+```text
+Authenticated question
+        │
+        ▼
+Direct-input guard
+        │
+        ├── suspicious → block before retrieval
+        ▼
+Semantic retrieval and relevance filtering
+        │
+        ▼
+Retrieved-context guard
+        │
+        ├── suspicious → block before generation
+        ▼
+Grounded answer generation
+        │
+        ▼
+Post-generation faithfulness evaluation
+        │
+        ├── unsupported → safe fallback
+        └── supported → answer and sources
+```
 
-- attempts to override system or developer instructions
-- requests to reveal hidden prompts
-- requests to expose credentials or other users' data
-- instructions embedded inside retrieved knowledge documents
+The direct-input guard examines the user's question before it is
+sent to the embedder or retriever. It detects:
 
-Blocked requests return the safe fallback without calling the
-answer generator. Every answer response includes a security
-assessment:
+- attempts to ignore, replace, override, or bypass system and
+  developer instructions
+- attempts to make the model assume a privileged system,
+  developer, administrator, or root role
+- requests to reveal hidden prompts, messages, or instructions
+- requests to expose API keys, passwords, credentials, secrets,
+  private data, or other customers' information
+
+Sensitive-data detection requires both an access or exfiltration
+verb and a sensitive target. This distinction prevents normal
+support questions such as “How do I reset my password?” from
+being incorrectly blocked.
+
+The retrieved-context guard examines the title and content of
+each relevant document before any document is sent to the answer
+generator. It detects:
+
+- instruction-override language embedded in a document
+- content addressed directly to an assistant, model, chatbot, or
+  LLM
+- content presented as a system or developer message
+- instructions asking the model to reveal, send, expose, follow,
+  or execute untrusted content
+
+The guards use deterministic, case-insensitive pattern matching.
+They do not send suspicious text to another external security
+service. When a guard detects a threat, processing stops
+immediately, the generator is not called, no source content is
+returned, and the normal safe fallback is used.
+
+The generator also receives a system instruction that treats the
+question and retrieved documents as untrusted data, forbids
+following instructions found inside the knowledge base, and
+prohibits the use of outside knowledge. After generation, a
+separate grounding evaluator verifies that every factual claim is
+supported by the selected documents.
+
+### Security Response Metadata
+
+Every answer response includes a security assessment:
 
 ```json
 {
@@ -295,10 +351,31 @@ assessment:
 }
 ```
 
-When a request is blocked, `prompt_injection_detected` and
-`blocked` are `true`. The `reason` is one of
-`direct_prompt_injection`, `indirect_prompt_injection`,
-`prompt_extraction`, or `unauthorized_data_access`.
+For accepted requests, both Boolean fields are `false` and
+`reason` is `null`. When a request is blocked,
+`prompt_injection_detected` and `blocked` are `true`, and
+`reason` contains one of:
+
+| Reason | Meaning |
+|---|---|
+| `direct_prompt_injection` | The question attempts to override instructions or assume a privileged model role. |
+| `indirect_prompt_injection` | A retrieved knowledge document contains instructions directed at the model. |
+| `prompt_extraction` | The question attempts to reveal hidden system or developer instructions. |
+| `unauthorized_data_access` | The question attempts to obtain credentials, secrets, private data, or another user's data. |
+
+Blocked events are recorded in structured logs using the reason,
+detection stage, request ID, and affected document IDs when
+applicable. The original question, document content, prompt,
+answer, and API key are deliberately excluded from logs.
+
+### Limitations
+
+Deterministic rules are fast, explainable, and easy to regression
+test, but they cannot guarantee detection of every adversarial
+prompt. Novel wording, encoding, multilingual attacks, token
+smuggling, and sufficiently obfuscated instructions may evade
+pattern matching. Benign text resembling control instructions
+may also be blocked.
 
 These rules provide defense in depth but cannot guarantee
 detection of every adversarial prompt. The system prompt,
@@ -391,6 +468,101 @@ instead.
 The assistant only answers using retrieved context.
 
 If insufficient evidence exists, a fallback response is returned.
+
+## Answer Cache
+
+The application uses a bounded, per-process in-memory cache to
+reduce latency and provider usage for repeated questions. The
+default policy is:
+
+- time to live: 300 seconds
+- maximum entries: 256
+- eviction policy: least recently used
+
+The cache key is a SHA-256 hash derived from:
+
+- the normalized lowercase question
+- the applied `top_k` value
+- the applied relevance threshold
+
+This means whitespace and letter-case differences reuse an
+answer, while changing a RAG control produces a separate cache
+entry. The hash is used only as an internal key and the original
+question is not written to cache logs.
+
+A cache hit bypasses retrieval, answer generation, and the
+grounding-evaluator model call. Direct prompt-injection detection
+still runs before the cache lookup. Blocked security requests,
+provider failures, and answers rejected by the grounding
+evaluator are never cached.
+
+Each answer includes cache metadata:
+
+```json
+{
+  "cache": {
+    "hit": true,
+    "status": "hit",
+    "cached_at": "2026-07-26T20:30:00Z",
+    "expires_at": "2026-07-26T20:35:00Z"
+  }
+}
+```
+
+The RAG inspector displays whether the last request was a cache
+hit or miss, the expiry time, configured TTL, capacity, and the
+result of manual invalidation.
+
+### Cache Invalidation
+
+Entries are invalidated or removed under these conditions:
+
+| Trigger | Behavior |
+|---|---|
+| TTL expires | The entry is removed on its next lookup and the request is recomputed. |
+| Manual invalidation | `DELETE /api/v1/cache` clears every entry in the current application instance. |
+| UI invalidation | The **Invalidate cache** button calls the protected invalidation endpoint and shows how many entries were removed. |
+| Capacity is exceeded | The least recently used entry is evicted until the cache is within its configured limit. |
+| Application restart or deployment | The in-memory cache starts empty. |
+
+Operators should manually invalidate the cache immediately after:
+
+- changing or replacing `knowledge_base.md` without restarting
+  the application
+- changing the generation system prompt or grounding-evaluator
+  instructions
+- changing the generator or embedding model on a live instance
+- correcting content that may already have produced cached
+  answers
+- changing behavior that is not represented by `top_k` or the
+  relevance threshold
+
+Normal changes to `top_k` and relevance threshold do not require
+manual invalidation because those values are part of the cache
+key. In the current container deployment, knowledge-base and
+model configuration changes normally create a new application
+instance, which also clears the cache automatically.
+
+Configure the cache through environment variables:
+
+```env
+CACHE_TTL_SECONDS=300
+CACHE_MAX_ENTRIES=256
+```
+
+The invalidation endpoint requires the same `X-API-Key` used by
+the other protected API operations:
+
+```bash
+curl -X DELETE \
+  -H "X-API-Key: $API_ACCESS_KEY" \
+  http://localhost:8000/api/v1/cache
+```
+
+Because the cache is local to each process, manual invalidation
+only clears the instance receiving the request. A multi-instance
+production deployment should use a shared cache such as Redis
+with versioned keys or a broadcast invalidation mechanism.
 
 ## Deterministic Sources
 
@@ -534,11 +706,44 @@ Run all tests
 pytest
 ```
 
-Coverage
+Run only the prompt-injection security regression suite:
 
 ```bash
-pytest --cov=app
+pytest -q tests/security
 ```
+
+## Prompt-Injection Security Tests
+
+The `tests/security/` suite verifies that suspicious inputs stop
+at the correct pipeline boundary and that unsafe content never
+reaches the answer generator.
+
+| Test module | Scenario | Expected protection |
+|---|---|---|
+| `test_direct_prompt_injection.py` | The user asks the model to ignore previous instructions and act as the system. | The request is blocked before retrieval with reason `direct_prompt_injection`. |
+| `test_indirect_prompt_injection.py` | A retrieved document contains instructions asking the assistant to reveal secrets. | Retrieval may complete, but generation is skipped and reason `indirect_prompt_injection` is returned. |
+| `test_prompt_extraction.py` | The user asks for the hidden system prompt. | The request is blocked before retrieval with reason `prompt_extraction`. |
+| `test_unauthorized_data_access.py` | The user asks for another customer's private data. | The request is blocked before retrieval with reason `unauthorized_data_access`. |
+| `test_fallback_on_suspicious_context.py` | Relevant context is formatted as a malicious system message. | The service returns the safe fallback, `grounded=false`, no sources, and never calls the generator. |
+
+The broader test suite also verifies related controls:
+
+- ordinary password-reset questions are not treated as credential
+  exfiltration
+- safe responses contain
+  `prompt_injection_detected=false`, `blocked=false`, and
+  `reason=null`
+- unsupported generated claims are rejected by the grounding
+  evaluator
+- source references originate from retrieval rather than from
+  model-generated text
+- missing or incorrect API keys cannot access protected
+  endpoints
+- request IDs remain consistent between response bodies, headers,
+  and structured logs
+
+At the time these guardrails were added, the complete suite
+contained 48 passing tests.
 
 ---
 

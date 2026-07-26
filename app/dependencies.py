@@ -17,6 +17,7 @@ from app.retrieval.openai_embedder import (
     OpenAIEmbedder,
 )
 from app.services.support_assistant import SupportAssistant
+from app.services.answer_cache import TTLAnswerCache
 
 
 @dataclass
@@ -90,6 +91,10 @@ async def build_container(
         grounding_evaluator=grounding_evaluator,
         relevance_threshold=settings.relevance_threshold,
         top_k=settings.top_k,
+        cache=TTLAnswerCache(
+            ttl_seconds=settings.cache_ttl_seconds,
+            max_entries=settings.cache_max_entries,
+        ),
     )
 
     return Container(assistant=assistant)

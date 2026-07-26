@@ -1,6 +1,9 @@
 import logging
+from dataclasses import replace
+from hashlib import sha256
 
 from app.domain.models import (
+    CacheMetadata,
     SecurityMetadata,
     Source,
     SupportAnswer,
@@ -14,6 +17,7 @@ from app.security.prompt_injection import (
     assess_context,
     assess_question,
 )
+from app.services.answer_cache import TTLAnswerCache
 
 
 logger = logging.getLogger(__name__)
@@ -34,12 +38,14 @@ class SupportAssistant:
         grounding_evaluator: GroundingEvaluator,
         relevance_threshold: float,
         top_k: int,
+        cache: TTLAnswerCache | None = None,
     ) -> None:
         self.retriever = retriever
         self.generator = generator
         self.grounding_evaluator = grounding_evaluator
         self.relevance_threshold = relevance_threshold
         self.top_k = top_k
+        self.cache = cache
 
     async def answer(
         self,
@@ -68,6 +74,33 @@ class SupportAssistant:
             if relevance_threshold is not None
             else self.relevance_threshold
         )
+        cache_key = self._cache_key(
+            question=question,
+            top_k=selected_top_k,
+            relevance_threshold=selected_threshold,
+        )
+
+        if self.cache is not None:
+            cached_entry = await self.cache.get(cache_key)
+            if cached_entry is not None:
+                logger.info(
+                    "answer_cache_hit",
+                    extra={
+                        "top_k": selected_top_k,
+                        "relevance_threshold": (
+                            selected_threshold
+                        ),
+                    },
+                )
+                return replace(
+                    cached_entry.answer,
+                    cache=CacheMetadata(
+                        hit=True,
+                        status="hit",
+                        cached_at=cached_entry.created_at,
+                        expires_at=cached_entry.expires_at,
+                    ),
+                )
 
         retrieved_documents = await self.retriever.retrieve(
             query=question,
@@ -98,10 +131,13 @@ class SupportAssistant:
         )
 
         if not relevant_documents:
-            return SupportAnswer(
-                answer=FALLBACK_ANSWER,
-                grounded=False,
-                sources=[],
+            return await self._cache_answer(
+                cache_key,
+                SupportAnswer(
+                    answer=FALLBACK_ANSWER,
+                    grounded=False,
+                    sources=[],
+                ),
             )
 
         generated_context = [
@@ -167,11 +203,54 @@ class SupportAssistant:
             for item in relevant_documents
         ]
 
-        return SupportAnswer(
-            answer=generated_answer,
-            grounded=True,
-            sources=sources,
+        return await self._cache_answer(
+            cache_key,
+            SupportAnswer(
+                answer=generated_answer,
+                grounded=True,
+                sources=sources,
+            ),
         )
+
+    async def invalidate_cache(self) -> int:
+        if self.cache is None:
+            return 0
+        return await self.cache.invalidate()
+
+    async def _cache_answer(
+        self,
+        key: str,
+        answer: SupportAnswer,
+    ) -> SupportAnswer:
+        if self.cache is None:
+            return answer
+
+        entry = await self.cache.set(key, answer)
+        logger.info("answer_cache_stored")
+        return replace(
+            answer,
+            cache=CacheMetadata(
+                hit=False,
+                status="miss",
+                cached_at=entry.created_at,
+                expires_at=entry.expires_at,
+            ),
+        )
+
+    @staticmethod
+    def _cache_key(
+        question: str,
+        top_k: int,
+        relevance_threshold: float,
+    ) -> str:
+        normalized_question = " ".join(
+            question.lower().split()
+        )
+        key_material = (
+            f"{normalized_question}|{top_k}|"
+            f"{relevance_threshold:.6f}"
+        )
+        return sha256(key_material.encode()).hexdigest()
 
     @staticmethod
     def _blocked_answer(

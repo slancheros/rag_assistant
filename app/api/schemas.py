@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -51,6 +53,13 @@ class SecurityResponse(BaseModel):
     reason: str | None
 
 
+class CacheResponse(BaseModel):
+    hit: bool
+    status: str
+    cached_at: datetime | None
+    expires_at: datetime | None
+
+
 class AnswerResponse(BaseModel):
     answer: str
     grounded: bool
@@ -58,6 +67,17 @@ class AnswerResponse(BaseModel):
     request_id: str
     parameters: RagParametersResponse
     security: SecurityResponse
+    cache: CacheResponse
+
+
+class CacheConfigResponse(BaseModel):
+    ttl_seconds: float
+    max_entries: int
+
+
+class CacheInvalidationResponse(BaseModel):
+    invalidated_entries: int
+    status: str
 
 
 class RagConfigResponse(BaseModel):
@@ -66,6 +86,7 @@ class RagConfigResponse(BaseModel):
     embedding_model: str
     document_count: int
     defaults: RagParametersResponse
+    cache: CacheConfigResponse
 
 
 class HealthResponse(BaseModel):

@@ -39,6 +39,17 @@ class Settings(BaseSettings):
         gt=0,
     )
 
+    cache_ttl_seconds: float = Field(
+        default=300.0,
+        gt=0,
+    )
+
+    cache_max_entries: int = Field(
+        default=256,
+        ge=1,
+        le=10000,
+    )
+
     log_level: str = "INFO"
 
     model_config = SettingsConfigDict(
