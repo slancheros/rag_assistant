@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 
 from app.api.schemas import (
     AnswerRequest,
@@ -8,6 +8,7 @@ from app.api.schemas import (
     RagParametersResponse,
     SourceResponse,
 )
+from app.api.security import require_api_key
 
 
 router = APIRouter()
@@ -24,6 +25,7 @@ async def health() -> HealthResponse:
 @router.get(
     "/config",
     response_model=RagConfigResponse,
+    dependencies=[Depends(require_api_key)],
 )
 async def config(request: Request) -> RagConfigResponse:
     assistant = request.app.state.container.assistant
@@ -43,6 +45,7 @@ async def config(request: Request) -> RagConfigResponse:
 @router.post(
     "/answer",
     response_model=AnswerResponse,
+    dependencies=[Depends(require_api_key)],
 )
 async def answer(
     payload: AnswerRequest,

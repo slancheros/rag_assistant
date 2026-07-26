@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.core.errors import AppError
 from app.core.logging import (
     bind_request_id,
@@ -30,10 +30,12 @@ ContainerBuilder = Callable[
 
 def create_app(
     container_builder: ContainerBuilder | None = None,
+    settings: Settings | None = None,
 ) -> FastAPI:
+    selected_settings = settings or get_settings()
+
     async def default_builder() -> Container:
-        settings = get_settings()
-        return await build_container(settings)
+        return await build_container(selected_settings)
 
     selected_builder = (
         container_builder or default_builder
@@ -41,15 +43,16 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        settings = get_settings()
-        configure_logging(settings.log_level)
-        app.state.settings = settings
+        configure_logging(selected_settings.log_level)
+        app.state.settings = selected_settings
         logger.info(
             "application_starting",
             extra={
-                "provider": settings.ai_provider,
-                "llm_model": settings.llm_model,
-                "embedding_model": settings.embedding_model,
+                "provider": selected_settings.ai_provider,
+                "llm_model": selected_settings.llm_model,
+                "embedding_model": (
+                    selected_settings.embedding_model
+                ),
             },
         )
         app.state.container = (

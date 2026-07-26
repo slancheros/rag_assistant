@@ -75,6 +75,18 @@
 
       <section class="control-card">
         <div class="control-label">
+          <label for="api-key">API access</label>
+          <output id="key-status">Locked</output>
+        </div>
+        <div class="key-control">
+          <input id="api-key" type="password" autocomplete="off" placeholder="Enter access key">
+          <button id="apply-key" type="button">Connect</button>
+        </div>
+        <p>The key is held in memory for this tab and is never written to browser storage.</p>
+      </section>
+
+      <section class="control-card">
+        <div class="control-label">
           <label for="top-k">Context window</label>
           <output id="top-k-value">2 chunks</output>
         </div>

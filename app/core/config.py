@@ -7,6 +7,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    api_access_key: SecretStr = SecretStr("")
+
     ai_provider: Literal["openai", "ollama"] = "ollama"
 
     openai_api_key: SecretStr = SecretStr("")

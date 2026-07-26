@@ -270,6 +270,80 @@ Secrets are loaded from environment variables.
 
 No credentials are committed.
 
+## API Access Security
+
+The application uses a shared API key to protect access to the
+RAG endpoints.
+
+The following endpoints require authentication:
+
+- `POST /api/v1/answer`
+- `GET /api/v1/config`
+
+The health endpoint, `GET /api/v1/health`, remains public so
+Docker and deployment platforms can check whether the service is
+available.
+
+### Request Flow
+
+```text
+Browser or API client
+        │
+        │  X-API-Key: <secret>
+        ▼
+FastAPI security dependency
+        │
+        ├── Missing or incorrect key → 401 Unauthorized
+        ├── Server has no configured key → 503 Unavailable
+        └── Correct key → endpoint executes
+```
+
+Generate a strong access key:
+
+```bash
+openssl rand -hex 32
+```
+
+Store it in the local `.env` file:
+
+```env
+API_ACCESS_KEY=generated-secret-value
+```
+
+Docker Compose injects the value into the application container.
+Its required-variable syntax prevents the stack from starting
+when `API_ACCESS_KEY` is missing.
+
+Clients provide the key in the `X-API-Key` HTTP header:
+
+```bash
+curl \
+  -H "X-API-Key: generated-secret-value" \
+  http://localhost:8000/api/v1/config
+```
+
+FastAPI runs the authentication dependency before the protected
+endpoint. The supplied key is compared with the configured
+`SecretStr` value using `hmac.compare_digest`, which provides a
+timing-safe comparison.
+
+The UI contains an API-key field in the RAG inspector. The key is
+held only in the current page's JavaScript memory and is attached
+to protected requests. It is not written to cookies,
+`localStorage`, or `sessionStorage`, and refreshing the page
+clears it.
+
+API keys, questions, prompts, and generated answers are excluded
+from structured logs. Responses include an `X-Request-ID` header
+that can be matched with server logs without exposing request
+credentials or content.
+
+This shared-key approach is intended for internal tools and
+trusted clients. It does not provide individual identities,
+roles, per-user auditing, or delegated access. A public
+multi-user deployment should use OAuth 2.0 or OpenID Connect
+instead.
+
 ## Grounding
 
 The assistant only answers using retrieved context.
@@ -373,6 +447,28 @@ example environment file before starting:
 ```bash
 cp .env.example .env
 ```
+
+Generate a private API access key and place it in `.env` as
+`API_ACCESS_KEY`. Compose refuses to start when this value is
+missing:
+
+```bash
+openssl rand -hex 32
+```
+
+The `/api/v1/answer` and `/api/v1/config` endpoints require the
+key in the `X-API-Key` header. The health endpoint remains public
+for container probes:
+
+```bash
+curl \
+  -H "X-API-Key: $API_ACCESS_KEY" \
+  http://localhost:8000/api/v1/config
+```
+
+The UI accepts the key in its RAG inspector and keeps it only in
+the current page's memory. It is cleared on refresh and is never
+written to browser storage.
 
 Stop the stack while preserving downloaded models:
 

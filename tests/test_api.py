@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.config import Settings
 from app.domain.models import Source, SupportAnswer
 from app.main import create_app
 
@@ -44,10 +45,16 @@ def client() -> TestClient:
         )
 
     test_app = create_app(
-        container_builder=build_fake_container
+        container_builder=build_fake_container,
+        settings=Settings(
+            api_access_key="test-access-key"
+        ),
     )
 
-    with TestClient(test_app) as test_client:
+    with TestClient(
+        test_app,
+        headers={"X-API-Key": "test-access-key"},
+    ) as test_client:
         yield test_client
 
 
@@ -79,3 +86,20 @@ def test_answer_serializes_domain_sources(
         "top_k": 2,
         "relevance_threshold": 0.35,
     }
+
+
+def test_answer_rejects_missing_api_key(
+    client: TestClient,
+) -> None:
+    del client.headers["X-API-Key"]
+
+    response = client.post(
+        "/api/v1/answer",
+        json={"question": "How do I reset my password?"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == (
+        "Invalid or missing API key."
+    )
+    assert response.headers["WWW-Authenticate"] == "ApiKey"

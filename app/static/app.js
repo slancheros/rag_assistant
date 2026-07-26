@@ -10,9 +10,18 @@ const els = {
   threshold: document.querySelector("#threshold"),
   thresholdValue: document.querySelector("#threshold-value"),
   reset: document.querySelector("#reset-controls"),
+  apiKey: document.querySelector("#api-key"),
+  applyKey: document.querySelector("#apply-key"),
 };
 
 let defaults = { top_k: 2, relevance_threshold: 0.35 };
+let apiKey = "";
+
+function authenticatedHeaders(includeJson = false) {
+  const headers = { "X-API-Key": apiKey };
+  if (includeJson) headers["Content-Type"] = "application/json";
+  return headers;
+}
 
 function setText(id, value) {
   document.querySelector(`#${id}`).textContent = value;
@@ -29,26 +38,38 @@ function resetControls() {
   syncControls();
 }
 
+async function loadHealth() {
+  try {
+    const response = await fetch("/api/v1/health");
+    if (!response.ok) throw new Error();
+    els.status.classList.add("online");
+    els.status.querySelector("span:last-child").textContent = "API connected · key required";
+  } catch {
+    els.status.classList.add("offline");
+    els.status.querySelector("span:last-child").textContent = "API unavailable";
+  }
+}
+
 async function loadConfig() {
   try {
-    const [healthResponse, configResponse] = await Promise.all([
-      fetch("/api/v1/health"),
-      fetch("/api/v1/config"),
-    ]);
-    if (!healthResponse.ok || !configResponse.ok) throw new Error("API unavailable");
-
-    const config = await configResponse.json();
+    const response = await fetch("/api/v1/config", {
+      headers: authenticatedHeaders(),
+    });
+    if (!response.ok) throw new Error("Invalid API key");
+    const config = await response.json();
     defaults = config.defaults;
     resetControls();
     setText("provider", config.provider);
     setText("llm-model", config.llm_model);
     setText("embedding-model", config.embedding_model);
     setText("document-count", config.document_count);
-    els.status.classList.add("online");
-    els.status.querySelector("span:last-child").textContent = "API connected";
+    setText("key-status", "Connected");
+    els.apiKey.value = "";
+    els.status.querySelector("span:last-child").textContent = "API connected · authorized";
   } catch {
-    els.status.classList.add("offline");
-    els.status.querySelector("span:last-child").textContent = "API unavailable";
+    apiKey = "";
+    setText("key-status", "Rejected");
+    els.status.querySelector("span:last-child").textContent = "API connected · key required";
   }
 }
 
@@ -99,7 +120,7 @@ async function ask(question) {
   try {
     const response = await fetch("/api/v1/answer", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authenticatedHeaders(true),
       body: JSON.stringify({
         question,
         top_k: Number(els.topK.value),
@@ -150,6 +171,16 @@ document.querySelectorAll("[data-question]").forEach((button) => {
 els.topK.addEventListener("input", syncControls);
 els.threshold.addEventListener("input", syncControls);
 els.reset.addEventListener("click", resetControls);
+els.applyKey.addEventListener("click", () => {
+  apiKey = els.apiKey.value;
+  loadConfig();
+});
+els.apiKey.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    els.applyKey.click();
+  }
+});
 
 syncControls();
-loadConfig();
+loadHealth();

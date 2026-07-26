@@ -315,6 +315,29 @@ kbd { padding: 2px 4px; border: 1px solid var(--line); border-radius: 4px; backg
 .control-card input { width: 100%; margin: 17px 0 7px; accent-color: var(--green); }
 .range-labels { display: flex; justify-content: space-between; color: #8b9692; font-family: "DM Mono", monospace; font-size: 8px; text-transform: uppercase; }
 .control-card p { margin: 13px 0 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
+.key-control { margin-top: 14px; display: grid; grid-template-columns: 1fr auto; gap: 7px; }
+.key-control input {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  outline: 0;
+  background: rgba(255,255,255,0.62);
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+}
+.key-control input:focus { border-color: var(--green); }
+.key-control button {
+  padding: 0 11px;
+  border: 0;
+  border-radius: 9px;
+  color: white;
+  background: var(--green);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+}
 
 .card-title { margin-bottom: 12px; }
 .live-pill { margin: 0; }
